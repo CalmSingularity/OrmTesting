@@ -40,17 +40,25 @@ namespace OrmTesting
 				.WithRequired(e => e.Address)
 				.WillCascadeOnDelete(false);
 
-			modelBuilder.Entity<Address>()
-				.HasMany(e => e.SalesOrderHeaders)
-				.WithRequired(e => e.Address)
-				.HasForeignKey(e => e.BillToAddressID)
-				.WillCascadeOnDelete(false);
+			//modelBuilder.Entity<Address>()
+			//	.HasMany(e => e.SalesOrderHeaders)
+			//	.WithRequired(e => e.Address)
+			//	.HasForeignKey(e => e.BillToAddress)
+			//	.WillCascadeOnDelete(false);
 
-			modelBuilder.Entity<Address>()
-				.HasMany(e => e.SalesOrderHeaders1)
-				.WithRequired(e => e.Address1)
-				.HasForeignKey(e => e.ShipToAddressID)
-				.WillCascadeOnDelete(false);
+			//modelBuilder.Entity<Address>()
+			//	.HasMany(e => e.SalesOrderHeaders1)
+			//	.WithRequired(e => e.Address1)
+			//	.HasForeignKey(e => e.ShipToAddressID)
+			//	.WillCascadeOnDelete(false);
+
+			////
+			//modelBuilder.Entity<SalesOrderHeader>()
+			//	.HasRequired(e => e.Address)
+			//	.WithMany(e => e.SalesOrderHeaders)
+			//	.HasForeignKey(e => e.BillToAddressID)
+			//	.WillCascadeOnDelete(false);
+
 
 			modelBuilder.Entity<AddressType>()
 				.HasMany(e => e.BusinessEntityAddresses)
@@ -64,6 +72,10 @@ namespace OrmTesting
 
 			modelBuilder.Entity<BusinessEntity>()
 				.HasOptional(e => e.Person)
+				.WithRequired(e => e.BusinessEntity);
+
+			modelBuilder.Entity<BusinessEntity>()
+				.HasOptional(e => e.SalesPerson)
 				.WithRequired(e => e.BusinessEntity);
 
 			modelBuilder.Entity<BusinessEntity>()
@@ -227,6 +239,11 @@ namespace OrmTesting
 			modelBuilder.Entity<SalesPerson>()
 				.Property(e => e.SalesLastYear)
 				.HasPrecision(19, 4);
+
+			//
+			modelBuilder.Entity<SalesPerson>()
+				.HasRequired(e => e.Person)
+				.WithOptional(e => e.SalesPerson);
 
 			modelBuilder.Entity<SalesPerson>()
 				.HasMany(e => e.SalesOrderHeaders)

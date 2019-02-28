@@ -13,8 +13,8 @@ namespace OrmTesting
         public Address()
         {
             BusinessEntityAddresses = new HashSet<BusinessEntityAddress>();
-            SalesOrderHeaders = new HashSet<SalesOrderHeader>();
-            SalesOrderHeaders1 = new HashSet<SalesOrderHeader>();
+            //SalesOrderHeaders = new HashSet<SalesOrderHeader>();
+            //SalesOrderHeaders1 = new HashSet<SalesOrderHeader>();
         }
 
         public int AddressID { get; set; }
@@ -47,10 +47,15 @@ namespace OrmTesting
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<BusinessEntityAddress> BusinessEntityAddresses { get; set; }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public virtual ICollection<SalesOrderHeader> SalesOrderHeaders { get; set; }
+        //[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        //public virtual ICollection<SalesOrderHeader> SalesOrderHeaders { get; set; }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public virtual ICollection<SalesOrderHeader> SalesOrderHeaders1 { get; set; }
-    }
+        //[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        //public virtual ICollection<SalesOrderHeader> SalesOrderHeaders1 { get; set; }
+
+		public override string ToString()
+		{
+			return $"{AddressLine1}, {AddressLine2}\n{City}, {StateProvince.Name}\n{StateProvince.CountryRegion.Name} {PostalCode}";
+		}
+	}
 }

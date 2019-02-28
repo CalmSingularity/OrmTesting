@@ -80,9 +80,9 @@ namespace OrmTesting
 
         public DateTime ModifiedDate { get; set; }
 
-        public virtual Address Address { get; set; }
+        //public virtual Address Address { get; set; }
 
-        public virtual Address Address1 { get; set; }
+        //public virtual Address Address1 { get; set; }
 
         public virtual ShipMethod ShipMethod { get; set; }
 
@@ -96,5 +96,11 @@ namespace OrmTesting
         public virtual SalesPerson SalesPerson { get; set; }
 
         public virtual SalesTerritory SalesTerritory { get; set; }
-    }
+
+		[ForeignKey("BillToAddressID")]
+		public virtual Address BillToAddress { get; set; }
+
+		[ForeignKey("ShipToAddressID")]
+		public virtual Address ShipToAddress { get; set; }
+	}
 }

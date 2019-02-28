@@ -46,6 +46,10 @@ namespace OrmTesting
 
         public virtual SalesTerritory SalesTerritory { get; set; }
 
+		public virtual BusinessEntity BusinessEntity { get; set; }
+
+		public virtual Person Person { get; set; }
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<Store> Stores { get; set; }
     }

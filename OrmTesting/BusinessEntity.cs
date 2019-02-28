@@ -26,6 +26,8 @@ namespace OrmTesting
 
         public virtual Person Person { get; set; }
 
-        public virtual Store Store { get; set; }
+		public virtual SalesPerson SalesPerson { get; set; }
+
+		public virtual Store Store { get; set; }
     }
 }

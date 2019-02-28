@@ -38,5 +38,10 @@ namespace OrmTesting
         public virtual ICollection<Customer> Customers { get; set; }
 
         public virtual SalesPerson SalesPerson { get; set; }
-    }
+
+		public override string ToString()
+		{
+			return $"({BusinessEntityID}) {Name}";
+		}
+	}
 }
