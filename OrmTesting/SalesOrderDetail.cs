@@ -42,5 +42,11 @@ namespace OrmTesting
         public DateTime ModifiedDate { get; set; }
 
         public virtual SalesOrderHeader SalesOrderHeader { get; set; }
-    }
+
+		[ForeignKey("ProductID")]
+		public virtual Product Product { get; set; }
+
+		[ForeignKey("SpecialOfferID")]
+		public virtual SpecialOffer SpecialOffer { get; set; }
+	}
 }

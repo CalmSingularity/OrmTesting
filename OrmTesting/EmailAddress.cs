@@ -16,7 +16,8 @@ namespace OrmTesting
 
         [Key]
         [Column(Order = 1)]
-        public int EmailAddressID { get; set; }
+		[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+		public int EmailAddressID { get; set; }
 
         [Column("EmailAddress")]
         [StringLength(50)]

@@ -24,7 +24,6 @@ namespace OrmTesting
         public int? TerritoryID { get; set; }
 
         [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
-        [Required]
         [StringLength(10)]
         public string AccountNumber { get; set; }
 
