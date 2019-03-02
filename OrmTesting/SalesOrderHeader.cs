@@ -31,7 +31,6 @@ namespace OrmTesting
         public bool OnlineOrderFlag { get; set; }
 
         [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
-        [Required]
         [StringLength(25)]
         public string SalesOrderNumber { get; set; }
 

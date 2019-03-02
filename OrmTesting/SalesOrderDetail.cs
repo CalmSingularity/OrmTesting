@@ -16,7 +16,8 @@ namespace OrmTesting
 
         [Key]
         [Column(Order = 1)]
-        public int SalesOrderDetailID { get; set; }
+		[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+		public int SalesOrderDetailID { get; set; }
 
         [StringLength(25)]
         public string CarrierTrackingNumber { get; set; }
@@ -41,7 +42,8 @@ namespace OrmTesting
 
         public DateTime ModifiedDate { get; set; }
 
-        public virtual SalesOrderHeader SalesOrderHeader { get; set; }
+		[ForeignKey("SalesOrderID")]
+		public virtual SalesOrderHeader SalesOrderHeader { get; set; }
 
 		[ForeignKey("ProductID")]
 		public virtual Product Product { get; set; }

@@ -17,7 +17,10 @@ namespace OrmTesting
 			Console.WriteLine();
 			Console.WriteLine(elapsedTime);
 
-			Console.WriteLine($"Общее время тестирования: {DateTime.Now - start}");
+			TimeSpan totalTime = DateTime.Now - start;
+			Console.WriteLine($"Общее время тестирования: {totalTime}");
+			Console.WriteLine($"Накладные расходы: {totalTime-elapsedTime.TotalTime}");
+
 			Console.ReadKey();
 		}
 	}

@@ -188,6 +188,12 @@ namespace OrmTesting
 				.WithRequired(e => e.Customer)
 				.WillCascadeOnDelete(false);
 
+			//
+			modelBuilder.Entity<SalesOrderHeader>()
+				.HasMany(e => e.SalesOrderDetails)
+				.WithRequired(e => e.SalesOrderHeader)
+				.WillCascadeOnDelete(false);
+
 			modelBuilder.Entity<SalesOrderDetail>()
 				.Property(e => e.UnitPrice)
 				.HasPrecision(19, 4);
