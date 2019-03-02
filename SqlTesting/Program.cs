@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using static OrmTesting.Utilities;
+
 
 namespace SqlTesting
 {
@@ -10,6 +11,18 @@ namespace SqlTesting
 	{
 		static void Main(string[] args)
 		{
+			DateTime start = DateTime.Now;
+
+			SqlTester tester = new SqlTester();
+			CrudTime elapsedTime = tester.Test();
+			Console.WriteLine();
+			Console.WriteLine(elapsedTime);
+
+			TimeSpan totalTime = DateTime.Now - start;
+			Console.WriteLine($"Общее время тестирования: {totalTime}");
+			Console.WriteLine($"Накладные расходы: {totalTime - elapsedTime.TotalTime}");
+
+			Console.ReadKey();
 		}
 	}
 }
