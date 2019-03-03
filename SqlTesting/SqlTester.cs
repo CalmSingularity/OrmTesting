@@ -33,10 +33,10 @@ namespace SqlTesting
 					conn);
 				salesPersonID = selectAllSalesPeopleIDs.ExecuteReader();
 
-				//while (salesPersonID.Read()) // запускаем тесты для каждого из продавцов
+				while (salesPersonID.Read()) // запускаем тесты для каждого из продавцов
 				{
-					_elapsedTime += SimulateDailyReporting(conn, 287);// (int)salesPersonID[0]);
-					_elapsedTime += SimulateDailyOperations(conn, 287, 3);// (int)salesPersonID[0], 3);
+					_elapsedTime += SimulateDailyReporting(conn, (int)salesPersonID[0]);
+					_elapsedTime += SimulateDailyOperations(conn, (int)salesPersonID[0], 3);
 				}
 			}
 			finally
@@ -128,29 +128,7 @@ namespace SqlTesting
 				ORDER BY NewId()",
 				conn);
 			selectStore.Parameters.AddWithValue("@sp", salesPersonID);
-			int? storeID = (int)selectStore.ExecuteScalar();
-
-			//if (storeID == null)  // если магазин отсутствует, создаем новый
-			//{
-			//	readStopWatch.Stop();
-			//	createStopWatch.Start();
-			//	SqlCommand insertBusinessEntity = new SqlCommand(
-			//		@"INSERT INTO Person.BusinessEntity 
-			//		OUTPUT inserted.BusinessEntityID
-			//		DEFAULT VALUES",
-			//		conn);
-			//	storeID = (int)insertBusinessEntity.ExecuteScalar();
-			//	SqlCommand insertStore = new SqlCommand(
-			//		@"INSERT INTO Sales.Store (BusinessEntityID, Name, SalesPersonID)
-			//		VALUES (@be, @name, @sp)",
-			//		conn);
-			//	insertStore.Parameters.AddWithValue("@be", storeID);
-			//	insertStore.Parameters.AddWithValue("@name", GenerateRandomString(15));
-			//	insertStore.Parameters.AddWithValue("@sp", salesPersonID);
-			//	insertStore.ExecuteNonQuery();
-			//	createStopWatch.Stop();
-			//	readStopWatch.Start();
-			//}
+			int? storeID = (int)(selectStore.ExecuteScalar() ?? 292); // если магазин не найден, используем магазин 292
 
 			// получаем территорию, страну, штат/провинцию
 			SqlCommand selectTerritoryCountry = new SqlCommand(
@@ -163,10 +141,20 @@ namespace SqlTesting
 				conn);
 			selectTerritoryCountry.Parameters.AddWithValue("@sp", salesPersonID);
 			SqlDataReader territoryReader = selectTerritoryCountry.ExecuteReader();
-			territoryReader.Read();
-			int territoryID = (int)territoryReader[0];
-			string countryRegionCode = (string)territoryReader[1];
-			int provinceID = (int)territoryReader[2];
+			int territoryID, provinceID;
+			string countryRegionCode;
+			if (territoryReader.Read())
+			{
+				territoryID = (int)territoryReader[0];
+				countryRegionCode = (string)territoryReader[1];
+				provinceID = (int)territoryReader[2];
+			}
+			else
+			{
+				territoryID = 1;
+				countryRegionCode = "US";
+				provinceID = 74;
+			}
 			territoryReader.Close();
 
 			// получаем список городов
@@ -453,9 +441,17 @@ namespace SqlTesting
 					conn);
 				selectName.Parameters.AddWithValue("@cust", customerID);
 				SqlDataReader nameReader = selectName.ExecuteReader();
-				nameReader.Read();
-				string firstName = (string)nameReader[0];
-				string lastName = (string)nameReader[1];
+				string firstName, lastName;
+				if (nameReader.Read())
+				{
+					firstName = (string)nameReader[0];
+					lastName = (string)nameReader[1];
+				}
+				else
+				{
+					firstName = "";
+					lastName = "";
+				}
 				nameReader.Close();
 
 				Console.Write($"Обновлен клиент {firstName} {lastName}. ");

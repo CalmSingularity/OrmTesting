@@ -23,8 +23,7 @@ namespace OrmTesting
 
 			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
 			{
-				//foreach (var sp in db.SalesPersons.ToList()) // запускаем тесты для каждого из продавцов
-				SalesPerson sp = db.SalesPersons.Find(287);
+				foreach (var sp in db.SalesPersons.ToList()) // запускаем тесты для каждого из продавцов
 				{
 					_elapsedTime += SimulateDailyReporting(db, sp);
 					_elapsedTime += SimulateDailyOperations(db, sp, 3);
@@ -291,7 +290,9 @@ namespace OrmTesting
 			updateStopWatch.Start();
 			for (int i = 0; i < nIterations; ++i)
 			{
-				Customer customer = customers[rand.Next(0, customers.Count)];  // выбираем случайного клиента
+				Customer customer;
+				do customer = customers[rand.Next(0, customers.Count)];  // выбираем случайного клиента
+				while (customer.Person == null);
 
 				PersonPhone phone = new PersonPhone  // генерируем новый номер телефона
 				{
@@ -388,10 +389,10 @@ namespace OrmTesting
 			sbOrder.Append($"Территория: {so.SalesTerritory.Name} {so.SalesTerritory.CountryRegion.Name}\n");
 
 			var person = so.Customer.Person;
-			sbOrder.Append($"Покупатель: {person.Title} {person.FirstName} {person.LastName}\n");
-			var phone = person.PersonPhones.FirstOrDefault();
+			sbOrder.Append($"Покупатель: {person?.Title} {person?.FirstName} {person?.LastName}\n");
+			var phone = person?.PersonPhones.FirstOrDefault();
 			sbOrder.Append($"Тел.: {phone?.PhoneNumber} ({phone?.PhoneNumberType?.Name})\n");
-			sbOrder.Append($"Email: {person.EmailAddresses.FirstOrDefault()?.EmailAddress1}\n");
+			sbOrder.Append($"Email: {person?.EmailAddresses.FirstOrDefault()?.EmailAddress1}\n");
 
 			person = so.SalesPerson.Person;
 			sbOrder.Append($"Продавец: {person.FirstName} {person.LastName}\n");
