@@ -24,10 +24,10 @@ namespace OrmTesting
 			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
 			{
 				//foreach (var sp in db.SalesPersons.ToList()) // запускаем тесты для каждого из продавцов
-				SalesPerson sp = db.SalesPersons.Find(282);
+				SalesPerson sp = db.SalesPersons.Find(287);
 				{
 					_elapsedTime += SimulateDailyReporting(db, sp);
-					_elapsedTime += SimulateDailyOperations(db, sp, 5);
+					_elapsedTime += SimulateDailyOperations(db, sp, 3);
 				}
 			}
 			return _elapsedTime;
@@ -88,7 +88,7 @@ namespace OrmTesting
 
 			readStopWatch.Start();
 			
-			var store = db.Stores  // получаем магазин, где работает продавец
+			var store = db.Stores  // получаем один из магазинов, где работает продавец
 				.Where(s => s.SalesPersonID == sp.BusinessEntityID)
 				.FirstOrDefault();
 			if (store == null)  // если магазин отсутствует, создаем новый
@@ -184,7 +184,7 @@ namespace OrmTesting
 				EmailAddress email = new EmailAddress
 				{
 					BusinessEntityID = customer.Person.BusinessEntityID,
-					EmailAddress1 = GenerateRandomString(8) + "@" + GenerateRandomString(6) + ".com",
+					EmailAddress1 = GenerateRandomString(8, false) + "@" + GenerateRandomString(6, false) + ".com",
 					ModifiedDate = DateTime.Now,
 					rowguid = Guid.NewGuid()
 				};
@@ -305,7 +305,7 @@ namespace OrmTesting
 				EmailAddress email = new EmailAddress  // генерируем новый email
 				{
 					BusinessEntityID = customer.Person.BusinessEntityID,
-					EmailAddress1 = GenerateRandomString(8) + "@" + GenerateRandomString(6) + ".com",
+					EmailAddress1 = GenerateRandomString(8, false) + "@" + GenerateRandomString(6, false) + ".com",
 					ModifiedDate = DateTime.Now,
 					rowguid = Guid.NewGuid()
 				};
@@ -348,7 +348,7 @@ namespace OrmTesting
 			foreach (var orderToDelete in ordersToday.Take(nIterations))
 			{
 				// сначала удаляем все позиции заказа
-				foreach (SalesOrderDetail orderLine in orderToDelete.SalesOrderDetails)
+				foreach (SalesOrderDetail orderLine in orderToDelete.SalesOrderDetails.ToList())
 					db.Entry(orderLine).State = EntityState.Deleted;
 				
 				db.Entry(orderToDelete).State = EntityState.Deleted;  // удаляем сам заказ
