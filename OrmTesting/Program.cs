@@ -21,6 +21,7 @@ namespace OrmTesting
 			Console.WriteLine($"Общее время тестирования: {totalTime}");
 			Console.WriteLine($"Накладные расходы: {totalTime-elapsedTime.TotalTime}");
 			Console.WriteLine($"Дата и время тестирования ORM: {DateTime.Now}");
+			//Console.ReadKey();
 		}
 	}
 }

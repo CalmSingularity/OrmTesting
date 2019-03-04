@@ -1,5 +1,6 @@
 ﻿using Microsoft.SqlServer.Types;
 using System;
+using System.Collections.Generic;
 using System.Data.Entity;
 using System.Data.Entity.SqlServer;
 using System.Diagnostics;
@@ -23,11 +24,12 @@ namespace OrmTesting
 
 			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
 			{
-				//db.Database.Log = Console.Write;
-				foreach (var sp in db.SalesPersons.ToList()) // запускаем тесты для каждого из продавцов
+				var salesPersonIDs = db.SalesPersons.AsNoTracking()
+					.Select(s => s.BusinessEntityID).ToList();  // получаем список всех продавцов
+				foreach (var salesPersonID in salesPersonIDs)  // запускаем тесты для каждого из продавцов
 				{
-					_elapsedTime += SimulateDailyReporting(db, sp);
-					_elapsedTime += SimulateDailyOperations(db, sp, 10);
+					_elapsedTime += SimulateDailyReporting(salesPersonID);
+					_elapsedTime += SimulateDailyOperations(salesPersonID, 1);
 				}
 			}
 			return _elapsedTime;
@@ -38,32 +40,33 @@ namespace OrmTesting
 		/// загружает из БД и выводит в консоль полную информацию по всем заказам продавца
 		/// на случайно выбранную дату
 		/// </summary>
-		public CrudTime SimulateDailyReporting(AdventureContext db, SalesPerson sp)
+		public CrudTime SimulateDailyReporting(int salesPersonID)//AdventureContext db, SalesPerson sp)
 		{
 			Random rand = new Random();
 			Stopwatch readStopWatch = new Stopwatch();
 			readStopWatch.Start();
+			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
+			{
+				// получаем все даты, когда продавец работал
+				var dates = db.SalesOrderHeaders.AsNoTracking()
+					.Where(so => so.SalesPerson.BusinessEntityID == salesPersonID)
+					.Select(so => so.OrderDate).Distinct().ToList();
 
-			// получаем все даты, когда продавец работал
-			var dates = db.SalesOrderHeaders  
-				.Where(so => so.SalesPerson.BusinessEntityID == sp.BusinessEntityID)
-				.Select(so => so.OrderDate).Distinct().ToList();
+				var date = dates[rand.Next(0, dates.Count())];  // выбираем случайную дату
 
-			var date = dates[rand.Next(0, dates.Count())];  // выбираем случайную дату
+				SalesPerson sp = db.SalesPersons.Find(salesPersonID);
+				Console.WriteLine($"Заказы по продавцу {sp.Person.FirstName} {sp.Person.LastName} за {date.ToShortDateString()}");
 
-			Console.WriteLine($"Заказы по продавцу {sp.Person.FirstName} {sp.Person.LastName} за {date.ToShortDateString()}");
+				// читаем из БД все заказы по выбранным продавцу и дате
+				var orders = db.SalesOrderHeaders.AsNoTracking()
+					.Where(so => so.OrderDate == date && so.SalesPerson.BusinessEntityID == sp.BusinessEntityID)
+					.ToList();
 
-			// читаем из БД все заказы по выбранным продавцу и дате
-			var orders = db.SalesOrderHeaders
-				.Where(so => so.OrderDate == date && so.SalesPerson.BusinessEntityID == sp.BusinessEntityID)
-				.ToList();
-
-			// выводим на экран полную информацию по всем прочитанным заказам
-			foreach (var order in orders)  
-				Console.WriteLine(PrintSalesOrder(db, order));
-
+				// выводим на экран полную информацию по всем прочитанным заказам
+				foreach (var order in orders)
+					Console.WriteLine(PrintSalesOrder(db, order));
+			}
 			readStopWatch.Stop();
-
 			return new CrudTime(new TimeSpan(), readStopWatch.Elapsed, new TimeSpan(), new TimeSpan());
 		}
 
@@ -76,290 +79,362 @@ namespace OrmTesting
 		/// 5. Удаляет N заказов
 		/// </summary>
 		/// <param name="nIterations">Количество создаваемых и изменяемых клиентов и заказов (N)</param>
-		public CrudTime SimulateDailyOperations(AdventureContext db, SalesPerson sp, int nIterations)
+		public CrudTime SimulateDailyOperations(int spID, int nIterations)//AdventureContext db, SalesPerson sp, int nIterations)
 		{
 			// таймеры для подсчета времени, затраченного на операции CRUD (создание, чтение, изменение, удаление) в БД
-			Stopwatch createStopWatch = new Stopwatch(); 
+			Stopwatch createStopWatch = new Stopwatch();
 			Stopwatch readStopWatch = new Stopwatch();
 			Stopwatch updateStopWatch = new Stopwatch();
 			Stopwatch deleteStopWatch = new Stopwatch();
-
 			Random rand = new Random();
 
-			readStopWatch.Start();
+			int storeID;
+			int territoryID;
+			string countryCode;
+			int provinceID;
+			List<string> cities;
+			List<int> customerIDs;
+			List<int> productIDs;
+			List<int> creditCardIDs;
 
-			// получаем один из магазинов, где работает продавец
-			var store = db.Stores  
-				.Where(s => s.SalesPersonID == sp.BusinessEntityID)
-				.FirstOrDefault();
-			if (store == null)  
-				store = new Store  // если магазин отсутствует, создаем новый
+			// вначале получаем необходимую информацию о продавце
+			readStopWatch.Start();
+			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
+			{
+				SalesPerson sp = db.SalesPersons.Find(spID);
+
+				// получаем один из магазинов, где работает продавец
+				var store = db.Stores
+					.Where(s => s.SalesPersonID == sp.BusinessEntityID)
+					.FirstOrDefault();
+				if (store == null)
 				{
-					BusinessEntity = new BusinessEntity
+					store = new Store  // если магазин отсутствует, создаем новый
 					{
+						BusinessEntity = new BusinessEntity
+						{
+							ModifiedDate = DateTime.Now,
+							rowguid = Guid.NewGuid()
+						},
+						Name = GenerateRandomString(15),
+						SalesPerson = sp,
 						ModifiedDate = DateTime.Now,
 						rowguid = Guid.NewGuid()
-					},
-					Name = GenerateRandomString(15),
-					SalesPerson = sp,
-					ModifiedDate = DateTime.Now,
-					rowguid = Guid.NewGuid()
-				};
-			
-			var territory = sp.SalesTerritory;  // получаем территорию, где работает продавец
-			if (territory == null)  // если территория не указана, выбираем первую попавшуюся из БД
-			{
-				territory = db.SalesTerritories.First();
-				sp.SalesTerritory = territory;
+					};
+					db.Stores.Add(store);
+					db.SaveChanges();
+				}
+				storeID = store.BusinessEntityID;
+
+				var territory = sp.SalesTerritory;  // получаем территорию, где работает продавец
+				if (territory == null)  // если территория не указана, выбираем первую попавшуюся из БД
+				{
+					territory = db.SalesTerritories.First();
+					sp.SalesTerritory = territory;
+				}
+				territoryID = sp.SalesTerritory.TerritoryID;
+
+				countryCode = territory.CountryRegion.CountryRegionCode;
+				var province = db.StateProvinces
+					.Where(s => s.TerritoryID == territory.TerritoryID)
+					.FirstOrDefault();
+				if (province == null)
+				{
+					province = db.StateProvinces.First();
+					db.StateProvinces.Add(province);
+					db.SaveChanges();
+				}
+				provinceID = province.StateProvinceID;
+
+				cities = db.Addresses.AsNoTracking()
+					.Where(a => a.StateProvinceID == province.StateProvinceID)
+					.Select(a => a.City)
+					.ToList();
+				if (cities.Count == 0)
+					cities.Add(GenerateRandomString(6));
 			}
-			var country = territory.CountryRegion;
-			var province = db.StateProvinces
-				.Where(s => s.TerritoryID == territory.TerritoryID)
-				.FirstOrDefault();
-			if (province == null)
-				province = db.StateProvinces.First();
-			var cities = db.Addresses
-				.Where(a => a.StateProvinceID == province.StateProvinceID)
-				.Select(a => a.City)
-				.ToList();
-			if (cities.Count == 0)
-				cities.Add(GenerateRandomString(6));
 			readStopWatch.Stop();
 
 			// 1. Создаем N новых клиентов случайным образом
 			createStopWatch.Start();
-			for (int i = 0; i < nIterations; ++i)
+			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
 			{
-				Address addr = new Address  // генерируем новый адрес случайным образом
-				{
-					AddressLine1 = GenerateRandomAddressLine(),
-					City = cities[rand.Next(0, cities.Count)],
-					StateProvince = province,
-					PostalCode = rand.Next(10000, 1000000).ToString(),
-					ModifiedDate = DateTime.Now,
-					rowguid = Guid.NewGuid()
-				};
+				// массивы для хранения новых объектов до записи их в БД
+				BusinessEntity[] newBusinessEntities = new BusinessEntity[nIterations];
+				Address[] newAddresses = new Address[nIterations];
+				BusinessEntityAddress[] newBusinessEntityAddresses = new BusinessEntityAddress[nIterations];
+				Person[] newPeople = new Person[nIterations];
+				Customer[] newCustomers = new Customer[nIterations];
+				PersonPhone[] newPhones = new PersonPhone[nIterations];
+				EmailAddress[] newEmails = new EmailAddress[nIterations];
+				SalesTerritory territory = db.SalesTerritories.Find(territoryID);
 
-				// вносим данные в связанные таблицы
-				BusinessEntity be = new BusinessEntity
+				for (int i = 0; i < nIterations; ++i) // генерируем новых клиентов
 				{
-					ModifiedDate = DateTime.Now,
-					rowguid = Guid.NewGuid()
-				};
-				BusinessEntityAddress beAddr = new BusinessEntityAddress
-				{
-					BusinessEntity = be,
-					Address = addr,
-					AddressTypeID = 4,
-					ModifiedDate = DateTime.Now,
-					rowguid = Guid.NewGuid()
-				};
+					newBusinessEntities[i] = new BusinessEntity  // генерируем новые бизнес-сущности
+					{
+						ModifiedDate = DateTime.Now,
+						rowguid = Guid.NewGuid()
+					};
 
-				Person person = new Person  // генерируем нового клиента случайным образом
-				{
-					PersonType = "IN",
-					Title = "Mr.",
-					FirstName = GenerateRandomString(rand.Next(3, 8)),
-					LastName = GenerateRandomString(rand.Next(3, 10)),
-					ModifiedDate = DateTime.Now,
-					rowguid = Guid.NewGuid(),
-					BusinessEntity = be
-				};
-				Customer customer = new Customer
-				{
-					Person = person,
-					Store = store,
-					SalesTerritory = territory,
-					ModifiedDate = DateTime.Now,
-					rowguid = Guid.NewGuid()
-				};
+					newAddresses[i] = new Address  // генерируем новый адрес случайным образом
+					{
+						AddressLine1 = GenerateRandomAddressLine(),
+						City = cities[rand.Next(0, cities.Count)],
+						StateProvinceID = provinceID,
+						PostalCode = rand.Next(10000, 1000000).ToString(),
+						ModifiedDate = DateTime.Now,
+						rowguid = Guid.NewGuid()
+					};
 
-				// добавляем контактные данные
-				PersonPhone phone = new PersonPhone
-				{
-					BusinessEntityID = customer.Person.BusinessEntityID,
-					PhoneNumber = rand.Next(1112223344, 2147483647).ToString(),
-					PhoneNumberTypeID = rand.Next(1, 4),
-					ModifiedDate = DateTime.Now
-				};
-				EmailAddress email = new EmailAddress
-				{
-					BusinessEntityID = customer.Person.BusinessEntityID,
-					EmailAddress1 = GenerateRandomString(8, false) + "@" + GenerateRandomString(6, false) + ".com",
-					ModifiedDate = DateTime.Now,
-					rowguid = Guid.NewGuid()
-				};
-				customer.Person.PersonPhones.Add(phone);
-				customer.Person.EmailAddresses.Add(email);
+					newBusinessEntityAddresses[i] = new BusinessEntityAddress  // привязываем адрес к бизнес-сущности
+					{
+						BusinessEntity = newBusinessEntities[i],
+						Address = newAddresses[i],
+						AddressTypeID = 4,
+						ModifiedDate = DateTime.Now,
+						rowguid = Guid.NewGuid()
+					};
 
-				// добавляем все созданные сущности в БД
-				//db.Entry(addr).State = EntityState.Added;
-				//db.Entry(be).State = EntityState.Added;
-				db.Entry(beAddr).State = EntityState.Added;
-				//db.Entry(person).State = EntityState.Added;
-				db.Entry(customer).State = EntityState.Added;
-				//db.Entry(phone).State = EntityState.Added;
-				//db.Entry(email).State = EntityState.Added;
+					newPeople[i] = new Person  // генерируем нового клиента случайным образом
+					{
+						BusinessEntity = newBusinessEntities[i],
+						PersonType = "IN",
+						Title = "Mr.",
+						FirstName = GenerateRandomString(rand.Next(3, 8)),
+						LastName = GenerateRandomString(rand.Next(3, 10)),
+						ModifiedDate = DateTime.Now,
+						rowguid = Guid.NewGuid()
+					};
+					newCustomers[i] = new Customer
+					{
+						Person = newPeople[i],
+						StoreID = storeID,
+						SalesTerritory = territory,
+						ModifiedDate = DateTime.Now,
+						rowguid = Guid.NewGuid()
+					};
+				}
+
+				// сохраняем новых клиентов в БД
+				db.BusinessEntityAddresses.AddRange(newBusinessEntityAddresses);
+				db.BusinessEntities.AddRange(newBusinessEntities);
+				db.Addresses.AddRange(newAddresses);
+				db.SaveChanges();  // сохраняем изменения в БД
+				db.People.AddRange(newPeople);
+				db.Customers.AddRange(newCustomers);
 				db.SaveChanges();  // сохраняем изменения в БД
 
-				Console.WriteLine($"Добавлен клиент {person.FirstName} {person.LastName} с адресом:");
-				Console.WriteLine(addr);
-				Console.WriteLine($"Тел.: {phone.PhoneNumber}, Email: {email.EmailAddress1}");
+				for (int i = 0; i < nIterations; ++i) // добавляем контактные данные
+				{
+					newPhones[i] = new PersonPhone
+					{
+						BusinessEntityID = newBusinessEntities[i].BusinessEntityID,
+						PhoneNumber = rand.Next(1112223344, 2147483647).ToString(),
+						PhoneNumberTypeID = rand.Next(1, 4),
+						ModifiedDate = DateTime.Now
+					};
+					newEmails[i] = new EmailAddress
+					{
+						BusinessEntityID = newBusinessEntities[i].BusinessEntityID,
+						EmailAddress1 = GenerateRandomString(8, false) + "@" + GenerateRandomString(6, false) + ".com",
+						ModifiedDate = DateTime.Now,
+						rowguid = Guid.NewGuid()
+					};
+					Console.WriteLine($"Добавлен клиент {newPeople[i].FirstName} {newPeople[i].LastName} с адресом:");
+					Console.WriteLine($"Тел.: {newPhones[i].PhoneNumber}, Email: {newEmails[i].EmailAddress1}");
+				}
+				db.PersonPhones.AddRange(newPhones);
+				db.EmailAddresses.AddRange(newEmails);
+				db.SaveChanges();  // сохраняем изменения в БД
 			}
 			createStopWatch.Stop();
 
+			// получаем список клиентов магазина, всех продуктов и кредитных карт
 			readStopWatch.Start();
-			var customers = db.Customers  // получаем список клиентов магазина
-				.Where(c => c.StoreID == store.BusinessEntityID)
-				.ToList();
-			var products = db.Products.ToList();  // получаем список всех продуктов
-			var creditCards = db.CreditCards.ToList();  // получаем список всех кредитных карт
+			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
+			{
+				customerIDs = db.Customers.AsNoTracking()
+					.Where(c => c.StoreID == storeID)
+					.Select(c => c.CustomerID)
+					.ToList();
+
+				productIDs = db.Products.AsNoTracking()  // получаем список всех продуктов
+					.Select(p => p.ProductID).ToList();
+				creditCardIDs = db.CreditCards.AsNoTracking()  // получаем список всех кредитных карт
+					.Select(cc => cc.CreditCardID).ToList();
+			}
 			readStopWatch.Stop();
 
 			// 2. Создаем N новых заказов случайным образом
 			createStopWatch.Start();
-			for (int h = 0; h < nIterations; ++h)
+			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
 			{
-				Customer customer = customers[rand.Next(0, customers.Count)]; // выбираем случайного клиента
-				Address addr = new Address  // генерируем новый адрес случайным образом
-				{
-					AddressLine1 = GenerateRandomAddressLine(),
-					City = cities[rand.Next(0, cities.Count)],
-					StateProvince = province,
-					PostalCode = rand.Next(10000, 1000000).ToString(),
-					ModifiedDate = DateTime.Now,
-					rowguid = Guid.NewGuid()
-				};
-				SalesOrderHeader soHeader = new SalesOrderHeader
-				{
-					RevisionNumber = 8,
-					OrderDate = DateTime.Now,
-					DueDate = DateTime.Now + new TimeSpan(14, 0, 0, 0),
-					Status = 5,
-					OnlineOrderFlag = true,
-					Customer = customer,
-					SalesPerson = sp,
-					SalesTerritory = territory,
-					BillToAddress = addr,
-					ShipToAddress = addr,
-					ShipMethodID = rand.Next(1, 6),
-					CreditCard = creditCards[rand.Next(0, creditCards.Count)],
-					CreditCardApprovalCode = rand.Next(1000000000, 2147483647).ToString(),
-					SubTotal = 0,
-					TaxAmt = 0,
-					Freight = 0,
-					TotalDue = 0,
-					rowguid = Guid.NewGuid(),
-					ModifiedDate = DateTime.Now
-				};
-				// добавляем все созданные сущности в БД
-				//db.Entry(addr).State = EntityState.Added;
-				db.Entry(soHeader).State = EntityState.Added;
-				db.SaveChanges();  // сохраняем изменения в БД
+				// массивы для хранения новых объектов до записи их в БД
+				SalesOrderHeader[] newSalesOrderHeaders = new SalesOrderHeader[nIterations];
+				Address[] newAddresses = new Address[nIterations];
 
-				// генерируем от 1 до 15 случайных позиций в заказе
-				int linesCount = rand.Next(1, 17);
-				for (int d = 0; d < linesCount; ++d)
+				SalesTerritory territory = db.SalesTerritories.Find(territoryID);
+				StateProvince province = db.StateProvinces.Find(provinceID);
+				SalesPerson sp = db.SalesPersons.Find(spID);
+
+				for (int h = 0; h < nIterations; ++h)
 				{
-					Product product = products[rand.Next(0, products.Count)];
-					SpecialOffer specialOffer = db.SpecialOffers.Find(1);
-					SalesOrderDetail soDetail = new SalesOrderDetail
+					newAddresses[h] = new Address  // генерируем новый адрес случайным образом
 					{
-						SalesOrderID = soHeader.SalesOrderID,
-						OrderQty = (short)rand.Next(1, 8),
-						Product = products[rand.Next(0, products.Count)],
-						SpecialOffer = specialOffer,
-						UnitPrice = rand.Next(3, 3579),
-						UnitPriceDiscount = 0,
+						AddressLine1 = GenerateRandomAddressLine(),
+						City = cities[rand.Next(0, cities.Count)],
+						StateProvince = province,
+						PostalCode = rand.Next(10000, 1000000).ToString(),
+						ModifiedDate = DateTime.Now,
+						rowguid = Guid.NewGuid()
+					};
+					newSalesOrderHeaders[h] = new SalesOrderHeader
+					{
+						RevisionNumber = 8,
+						OrderDate = DateTime.Now,
+						DueDate = DateTime.Now + new TimeSpan(14, 0, 0, 0),
+						Status = 5,
+						OnlineOrderFlag = true,
+						Customer = db.Customers.Find(customerIDs[rand.Next(0, customerIDs.Count)]),
+						SalesPerson = sp,
+						SalesTerritory = territory,
+						BillToAddress = newAddresses[h],
+						ShipToAddress = newAddresses[h],
+						ShipMethod = db.ShipMethods.Find(rand.Next(1, 6)),
+						CreditCard = db.CreditCards.Find(creditCardIDs[rand.Next(0, creditCardIDs.Count)]),
+						CreditCardApprovalCode = rand.Next(1000000000, 2147483647).ToString(),
+						SubTotal = 0,
+						TaxAmt = 0,
+						Freight = 0,
+						TotalDue = 0,
 						rowguid = Guid.NewGuid(),
 						ModifiedDate = DateTime.Now
 					};
-					db.Entry(soDetail).State = EntityState.Added;
-					soHeader.SalesOrderDetails.Add(soDetail);  // добавляем позицию в заказ
-					soHeader.SubTotal += soDetail.LineTotal;  // обновляем общую сумму заказа
-					db.SaveChanges();  // сохраняем изменения в БД
 				}
-				// обновляем суммы налога и доставки в заказе
-				soHeader.TaxAmt = soHeader.SubTotal * 0.096M;
-				soHeader.Freight = soHeader.SubTotal * 0.03M;
+				db.SalesOrderHeaders.AddRange(newSalesOrderHeaders);  // добавляем все созданные сущности в БД
 				db.SaveChanges();  // сохраняем изменения в БД
 
-				Console.WriteLine($"Добавлен заказ:\n{PrintSalesOrder(db, soHeader)}");
+				SpecialOffer specialOffer = db.SpecialOffers.Find(1);
+				// генерируем от 1 до 15 случайных позиций для каждого созданного заказа
+				for (int h = 0; h < nIterations; ++h)
+				{
+					int linesCount = rand.Next(1, 16);
+					SalesOrderDetail[] newSalesOrderDetails = new SalesOrderDetail[linesCount];
+					for (int d = 0; d < linesCount; ++d)
+					{
+						newSalesOrderDetails[d] = new SalesOrderDetail
+						{
+							SalesOrderHeader = newSalesOrderHeaders[h],
+							OrderQty = (short)rand.Next(1, 8),
+							Product = db.Products.Find(productIDs[rand.Next(0, productIDs.Count)]),
+							SpecialOffer = specialOffer,
+							UnitPrice = rand.Next(3, 3579),
+							UnitPriceDiscount = 0,
+							rowguid = Guid.NewGuid(),
+							ModifiedDate = DateTime.Now
+						};
+					}
+					db.SalesOrderDetails.AddRange(newSalesOrderDetails); // добавляем позиции в заказ
+					db.SaveChanges();  // сохраняем изменения в БД
+
+					newSalesOrderHeaders[h].SubTotal = newSalesOrderHeaders[h]  // обновляем общую сумму заказа
+						.SalesOrderDetails.Sum(d => d.LineTotal);
+					// обновляем суммы налога и доставки в заказе
+					newSalesOrderHeaders[h].TaxAmt = newSalesOrderHeaders[h].SubTotal * 0.096M;
+					newSalesOrderHeaders[h].Freight = newSalesOrderHeaders[h].SubTotal * 0.03M;
+					
+					db.SaveChanges();  // сохраняем изменения в БД
+
+					Console.WriteLine($"Добавлен заказ:\n{PrintSalesOrder(db, newSalesOrderHeaders[h])}");
+				}
 			}
 			createStopWatch.Stop();
 
 			// 3. Обновляем контактные данные N клиентов
 			updateStopWatch.Start();
-			for (int i = 0; i < nIterations; ++i)
+			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
 			{
-				Customer customer;
-				do customer = customers[rand.Next(0, customers.Count)];  // выбираем случайного клиента
-				while (customer.Person == null);
+				// массивы для хранения новых объектов до записи их в БД
+				PersonPhone[] newPhones = new PersonPhone[nIterations];
+				EmailAddress[] newEmails = new EmailAddress[nIterations];
 
-				PersonPhone phone = new PersonPhone  // генерируем новый номер телефона
+				for (int u = 0; u < nIterations; ++u)
 				{
-					BusinessEntityID = customer.Person.BusinessEntityID,
-					PhoneNumber = rand.Next(1112223344, 2147483647).ToString(),
-					PhoneNumberTypeID = rand.Next(1, 4),
-					ModifiedDate = DateTime.Now
-				};
-				customer.Person.PersonPhones.Add(phone);
+					Customer customer;  // выбираем случайного клиента с заполненным полем Person
+					do
+						customer = db.Customers.Find(customerIDs[rand.Next(0, customerIDs.Count)]);
+					while (customer.Person == null);
 
-				EmailAddress email = new EmailAddress  // генерируем новый email
-				{
-					BusinessEntityID = customer.Person.BusinessEntityID,
-					EmailAddress1 = GenerateRandomString(8, false) + "@" + GenerateRandomString(6, false) + ".com",
-					ModifiedDate = DateTime.Now,
-					rowguid = Guid.NewGuid()
-				};
-				customer.Person.EmailAddresses.Add(email);
+					newPhones[u] = new PersonPhone  // генерируем новый номер телефона
+					{
+						BusinessEntityID = customer.Person.BusinessEntityID,
+						PhoneNumber = rand.Next(1112223344, 2147483647).ToString(),
+						PhoneNumberTypeID = rand.Next(1, 4),
+						ModifiedDate = DateTime.Now
+					};
+					//customer.Person.PersonPhones.Add(phone);
 
+					newEmails[u] = new EmailAddress  // генерируем новый email
+					{
+						BusinessEntityID = customer.Person.BusinessEntityID,
+						EmailAddress1 = GenerateRandomString(8, false) + "@" + GenerateRandomString(6, false) + ".com",
+						ModifiedDate = DateTime.Now,
+						rowguid = Guid.NewGuid()
+					};
+					//customer.Person.EmailAddresses.Add(email);
+
+					//db.Entry(phone).State = EntityState.Added;
+					//db.Entry(email).State = EntityState.Added;
+					//db.Entry(customer).State = EntityState.Modified;
+					Console.Write($"Обновлен клиент {customer.Person.FirstName} {customer.Person.LastName}. ");
+					Console.WriteLine($"Добавлен тел.: {newPhones[u].PhoneNumber}, новый email: {newEmails[u].EmailAddress1}");
+				}
 				// сохраняем обновленные сущности в БД
-				//db.Entry(phone).State = EntityState.Added;
-				//db.Entry(email).State = EntityState.Added;
-				//db.Entry(customer).State = EntityState.Modified;
+				db.PersonPhones.AddRange(newPhones);
+				db.EmailAddresses.AddRange(newEmails);
 				db.SaveChanges();  // сохраняем изменения в БД
-				Console.Write($"Обновлен клиент {customer.Person.FirstName} {customer.Person.LastName}. ");
-				Console.WriteLine($"Новый тел.: {phone.PhoneNumber}, новый email: {email.EmailAddress1}");
 			}
 			updateStopWatch.Stop();
 
-			readStopWatch.Start();
-			// получаем список сегодняшних заказов
-			var ordersToday = db.SalesOrderHeaders
-				.Where(o => DbFunctions.TruncateTime(o.OrderDate) == DbFunctions.TruncateTime(DateTime.Now))
-				.ToList();
-			readStopWatch.Stop();
-
-			// 4. Обновляем данные по N сегодняшних заказов
-			updateStopWatch.Start();
-			for (int o = 0; o < nIterations; ++o)
+			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
 			{
-				SalesOrderHeader orderToUpdate = ordersToday[rand.Next(0, ordersToday.Count)];
-				orderToUpdate.ShipDate = orderToUpdate.OrderDate + new TimeSpan(7, 0, 0, 0);
-				orderToUpdate.ModifiedDate = DateTime.Now;
-				orderToUpdate.CreditCard = creditCards[rand.Next(0, creditCards.Count)];
-				
-				//db.Entry(orderToUpdate).State = EntityState.Modified;
-				db.SaveChanges();  // сохраняем изменения в БД
-				Console.WriteLine($"Обновлен заказ № {orderToUpdate.SalesOrderNumber}");
-			}
-			updateStopWatch.Stop();
+				// получаем список сегодняшних заказов
+				readStopWatch.Start();
+				var ordersToday = db.SalesOrderHeaders
+					.Where(o => DbFunctions.TruncateTime(o.OrderDate) == DbFunctions.TruncateTime(DateTime.Now))
+					.ToList();
+				readStopWatch.Stop();
 
-			// 5. Удаляем N сегодняшних заказов
-			deleteStopWatch.Start();
-			foreach (var orderToDelete in ordersToday.Take(nIterations))
-			{
-				// сначала удаляем все позиции заказа
-				foreach (SalesOrderDetail orderLine in orderToDelete.SalesOrderDetails.ToList())
-					db.Entry(orderLine).State = EntityState.Deleted;
-				
-				db.Entry(orderToDelete).State = EntityState.Deleted;  // удаляем сам заказ
+				// 4. Обновляем данные по N сегодняшних заказов
+				updateStopWatch.Start();
+				for (int o = 0; o < nIterations; ++o)
+				{
+					SalesOrderHeader orderToUpdate = ordersToday[rand.Next(0, ordersToday.Count)];
+					orderToUpdate.ShipDate = orderToUpdate.OrderDate + new TimeSpan(7, 0, 0, 0);
+					orderToUpdate.ModifiedDate = DateTime.Now;
+					orderToUpdate.CreditCardID = creditCardIDs[rand.Next(0, creditCardIDs.Count)];
+					db.Entry(orderToUpdate).State = EntityState.Modified;
+					Console.WriteLine($"Обновлен заказ № {orderToUpdate.SalesOrderNumber}");
+				}
 				db.SaveChanges();  // сохраняем изменения в БД
-				Console.WriteLine($"Удален заказ № {orderToDelete.SalesOrderNumber}");
-			}
-			deleteStopWatch.Stop();
+				updateStopWatch.Stop();
 
+				// 5. Удаляем N сегодняшних заказов
+				deleteStopWatch.Start();
+				foreach (var orderToDelete in ordersToday.Take(nIterations))
+				{
+					// сначала удаляем все позиции заказа
+					foreach (SalesOrderDetail orderLine in orderToDelete.SalesOrderDetails.ToList())
+						db.Entry(orderLine).State = EntityState.Deleted;
+
+					db.Entry(orderToDelete).State = EntityState.Deleted;  // удаляем сам заказ
+					
+					Console.WriteLine($"Удален заказ № {orderToDelete.SalesOrderNumber}");
+				}
+				db.SaveChanges();  // сохраняем изменения в БД
+				deleteStopWatch.Stop();
+			}
 
 			return new CrudTime(
 				createStopWatch.Elapsed,
@@ -378,6 +453,7 @@ namespace OrmTesting
 		public string PrintSalesOrder(AdventureContext db, SalesOrderHeader so)
 		{
 			StringBuilder sbOrder = new StringBuilder();
+
 			sbOrder.Append($"Заказ № {so.SalesOrderNumber} ");
 			sbOrder.Append($"Заказ на поставку № {so.PurchaseOrderNumber} ");
 			sbOrder.Append($"Номер счета: {so.AccountNumber}\n");

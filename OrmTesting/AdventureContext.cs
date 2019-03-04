@@ -9,6 +9,7 @@ namespace OrmTesting
 	{
 		public AdventureContext() : base("name=AdventureWorks")
 		{
+			//Database.Log = Console.Write;
 		}
 
 		public virtual DbSet<Address> Addresses { get; set; }
