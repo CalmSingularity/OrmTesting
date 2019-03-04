@@ -1,18 +1,17 @@
 ﻿using System;
-using System.Configuration;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using static OrmTesting.Utilities;
-using System.Diagnostics;
-using System.Data;
 
 namespace SqlTesting
 {
 	class SqlTester
 	{
-
 		public CrudTime Test()
 		{
 			CrudTime _elapsedTime = new CrudTime(); // здесь будет суммироваться время, затраченное на операции с БД
@@ -36,7 +35,7 @@ namespace SqlTesting
 				while (salesPersonID.Read()) // запускаем тесты для каждого из продавцов
 				{
 					_elapsedTime += SimulateDailyReporting(conn, (int)salesPersonID[0]);
-					_elapsedTime += SimulateDailyOperations(conn, (int)salesPersonID[0], 3);
+					_elapsedTime += SimulateDailyOperations(conn, (int)salesPersonID[0], 10);
 				}
 			}
 			finally
@@ -58,7 +57,7 @@ namespace SqlTesting
 		public CrudTime SimulateDailyReporting(SqlConnection conn, int salesPersonID)
 		{
 			Random rand = new Random();
-			Stopwatch readStopWatch = new Stopwatch();
+			Stopwatch readStopWatch = new Stopwatch();  // таймер для подсчета времени
 			readStopWatch.Start();
 
 			// выбираем случайную дату, когда продавец работал
@@ -70,6 +69,7 @@ namespace SqlTesting
 			selectRandomDate.Parameters.AddWithValue("@sp", salesPersonID);
 			DateTime date = (DateTime)selectRandomDate.ExecuteScalar();
 
+			// получаем имя и фамилию продавца
 			SqlCommand selectSalesPerson = new SqlCommand(
 				@"SELECT FirstName, LastName FROM Sales.SalesPerson sp
 				JOIN Person.Person p ON sp.BusinessEntityID = p.BusinessEntityID
@@ -79,10 +79,9 @@ namespace SqlTesting
 			SqlDataReader salesPerson = selectSalesPerson.ExecuteReader();
 			salesPerson.Read();
 			Console.WriteLine($"Заказы по продавцу {salesPerson[0]} {salesPerson[1]} за {date.ToShortDateString()}");
-			//if (salesPerson != null)
 			salesPerson.Close();
 
-			// читаем из БД перечень заказов по выбранным продавцу и дате
+			// читаем из БД перечень заказов по выбранной дате
 			SqlCommand selectSalesOrders = new SqlCommand(
 				@"SELECT SalesOrderID FROM Sales.SalesOrderHeader 
 				WHERE SalesPersonID = @sp AND DATEDIFF(dd, OrderDate, @d) = 0",
@@ -91,7 +90,8 @@ namespace SqlTesting
 			selectSalesOrders.Parameters.Add("@d", SqlDbType.Date).Value = date;
 			SqlDataReader orders = selectSalesOrders.ExecuteReader();
 
-			while (orders.Read()) // выводим на экран полную информацию по всему перечню заказов
+			// выводим на экран полную информацию по всему перечню заказов
+			while (orders.Read()) 
 				Console.WriteLine(PrintSalesOrder(conn, (int)orders[0]));
 			orders.Close();
 
@@ -128,7 +128,7 @@ namespace SqlTesting
 				ORDER BY NewId()",
 				conn);
 			selectStore.Parameters.AddWithValue("@sp", salesPersonID);
-			int? storeID = (int)(selectStore.ExecuteScalar() ?? 292); // если магазин не найден, используем магазин 292
+			int storeID = (int)(selectStore.ExecuteScalar() ?? 292); // если магазин не найден, используем магазин 292
 
 			// получаем территорию, страну, штат/провинцию
 			SqlCommand selectTerritoryCountry = new SqlCommand(
@@ -149,7 +149,7 @@ namespace SqlTesting
 				countryRegionCode = (string)territoryReader[1];
 				provinceID = (int)territoryReader[2];
 			}
-			else
+			else  // если территория не найдена, используем территорию 1, штат 74
 			{
 				territoryID = 1;
 				countryRegionCode = "US";
@@ -290,7 +290,7 @@ namespace SqlTesting
 			List<int> allCreditCards = new List<int>();
 			while (creditCardsReader.Read())
 				allCreditCards.Add((int)creditCardsReader[0]);
-			productsReader.Close();
+			creditCardsReader.Close();
 
 			readStopWatch.Stop();
 
@@ -318,12 +318,13 @@ namespace SqlTesting
 				// генерируем заголовок заказа
 				SqlCommand insertOrderHeader = new SqlCommand(
 					@"INSERT INTO Sales.SalesOrderHeader 
-					(RevisionNumber, OrderDate, DueDate, Status, OnlineOrderFlag, 
+						(RevisionNumber, OrderDate, DueDate, Status, OnlineOrderFlag, 
 						CustomerID, SalesPersonID, TerritoryID, BillToAddressID, ShipToAddressID, 
 						ShipMethodID, CreditCardID, CreditCardApprovalCode, 
 						SubTotal, TaxAmt, Freight)
 					OUTPUT inserted.SalesOrderID
-					VALUES (8, @date, @due, 5, 1, @cus, @sp, @terr, @billto, 
+					VALUES 
+						(8, @date, @due, 5, 1, @cus, @sp, @terr, @billto, 
 						@shipto, @shipm, @cc, @ccappr, 0, 0, 0)",
 					conn);
 				insertOrderHeader.Parameters.Add("@date", SqlDbType.DateTime).Value = DateTime.Now;
@@ -345,9 +346,9 @@ namespace SqlTesting
 					SqlCommand insertOrderDetail = new SqlCommand(
 						@"DECLARE @t TABLE (SodID int)
 						INSERT INTO Sales.SalesOrderDetail
-						(SalesOrderID, OrderQty, ProductID, SpecialOfferID, UnitPrice, UnitPriceDiscount)
+							(SalesOrderID, OrderQty, ProductID, SpecialOfferID, UnitPrice, UnitPriceDiscount)
 						OUTPUT inserted.SalesOrderDetailID INTO @t
-						VALUES(@so, @qty, @prod, 1, @price, 0)
+						VALUES (@so, @qty, @prod, 1, @price, 0)
 						SELECT * FROM @t",
 						conn);
 					insertOrderDetail.Parameters.AddWithValue("@so", orderID);
@@ -437,7 +438,7 @@ namespace SqlTesting
 					@"SELECT p.FirstName, p.LastName
 					FROM Sales.Customer c
 					JOIN Person.Person p ON c.PersonID = p.BusinessEntityID
-					WHERE CustomerID =@cust",
+					WHERE CustomerID = @cust",
 					conn);
 				selectName.Parameters.AddWithValue("@cust", customerID);
 				SqlDataReader nameReader = selectName.ExecuteReader();

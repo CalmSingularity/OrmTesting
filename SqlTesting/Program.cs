@@ -21,8 +21,7 @@ namespace SqlTesting
 			TimeSpan totalTime = DateTime.Now - start;
 			Console.WriteLine($"Общее время тестирования: {totalTime}");
 			Console.WriteLine($"Накладные расходы: {totalTime - elapsedTime.TotalTime}");
-
-			Console.ReadKey();
+			Console.WriteLine($"Дата и время тестирования SQL: {DateTime.Now}");
 		}
 	}
 }

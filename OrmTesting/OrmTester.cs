@@ -23,10 +23,11 @@ namespace OrmTesting
 
 			using (AdventureContext db = new AdventureContext()) // создаем контекст БД
 			{
+				//db.Database.Log = Console.Write;
 				foreach (var sp in db.SalesPersons.ToList()) // запускаем тесты для каждого из продавцов
 				{
 					_elapsedTime += SimulateDailyReporting(db, sp);
-					_elapsedTime += SimulateDailyOperations(db, sp, 3);
+					_elapsedTime += SimulateDailyOperations(db, sp, 10);
 				}
 			}
 			return _elapsedTime;
@@ -43,7 +44,7 @@ namespace OrmTesting
 			Stopwatch readStopWatch = new Stopwatch();
 			readStopWatch.Start();
 
-			// Получаем все даты, когда продавец работал
+			// получаем все даты, когда продавец работал
 			var dates = db.SalesOrderHeaders  
 				.Where(so => so.SalesPerson.BusinessEntityID == sp.BusinessEntityID)
 				.Select(so => so.OrderDate).Distinct().ToList();
@@ -86,12 +87,13 @@ namespace OrmTesting
 			Random rand = new Random();
 
 			readStopWatch.Start();
-			
-			var store = db.Stores  // получаем один из магазинов, где работает продавец
+
+			// получаем один из магазинов, где работает продавец
+			var store = db.Stores  
 				.Where(s => s.SalesPersonID == sp.BusinessEntityID)
 				.FirstOrDefault();
-			if (store == null)  // если магазин отсутствует, создаем новый
-				store = new Store
+			if (store == null)  
+				store = new Store  // если магазин отсутствует, создаем новый
 				{
 					BusinessEntity = new BusinessEntity
 					{
@@ -191,13 +193,13 @@ namespace OrmTesting
 				customer.Person.EmailAddresses.Add(email);
 
 				// добавляем все созданные сущности в БД
-				db.Entry(addr).State = EntityState.Added;
-				db.Entry(be).State = EntityState.Added;
+				//db.Entry(addr).State = EntityState.Added;
+				//db.Entry(be).State = EntityState.Added;
 				db.Entry(beAddr).State = EntityState.Added;
-				db.Entry(person).State = EntityState.Added;
+				//db.Entry(person).State = EntityState.Added;
 				db.Entry(customer).State = EntityState.Added;
-				db.Entry(phone).State = EntityState.Added;
-				db.Entry(email).State = EntityState.Added;
+				//db.Entry(phone).State = EntityState.Added;
+				//db.Entry(email).State = EntityState.Added;
 				db.SaveChanges();  // сохраняем изменения в БД
 
 				Console.WriteLine($"Добавлен клиент {person.FirstName} {person.LastName} с адресом:");
@@ -251,7 +253,7 @@ namespace OrmTesting
 					ModifiedDate = DateTime.Now
 				};
 				// добавляем все созданные сущности в БД
-				db.Entry(addr).State = EntityState.Added;
+				//db.Entry(addr).State = EntityState.Added;
 				db.Entry(soHeader).State = EntityState.Added;
 				db.SaveChanges();  // сохраняем изменения в БД
 
@@ -313,9 +315,9 @@ namespace OrmTesting
 				customer.Person.EmailAddresses.Add(email);
 
 				// сохраняем обновленные сущности в БД
-				db.Entry(phone).State = EntityState.Added;
-				db.Entry(email).State = EntityState.Added;
-				db.Entry(customer).State = EntityState.Modified;
+				//db.Entry(phone).State = EntityState.Added;
+				//db.Entry(email).State = EntityState.Added;
+				//db.Entry(customer).State = EntityState.Modified;
 				db.SaveChanges();  // сохраняем изменения в БД
 				Console.Write($"Обновлен клиент {customer.Person.FirstName} {customer.Person.LastName}. ");
 				Console.WriteLine($"Новый тел.: {phone.PhoneNumber}, новый email: {email.EmailAddress1}");
@@ -338,7 +340,7 @@ namespace OrmTesting
 				orderToUpdate.ModifiedDate = DateTime.Now;
 				orderToUpdate.CreditCard = creditCards[rand.Next(0, creditCards.Count)];
 				
-				db.Entry(orderToUpdate).State = EntityState.Modified;
+				//db.Entry(orderToUpdate).State = EntityState.Modified;
 				db.SaveChanges();  // сохраняем изменения в БД
 				Console.WriteLine($"Обновлен заказ № {orderToUpdate.SalesOrderNumber}");
 			}
